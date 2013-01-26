@@ -1,6 +1,7 @@
 var websocket = '';
 var connect = function() {
-    var wsServer = 'ws://192.168.1.171:1337';
+    //var wsServer = 'ws://192.168.1.171:1337';
+    var wsServer = 'ws://192.168.1.124:8000';
     websocket = new WebSocket(wsServer); 
     websocket.onopen = function (evt) { onOpen(evt) }; 
     websocket.onclose = function (evt) { onClose(evt) }; 
@@ -11,7 +12,7 @@ var connect = function() {
         console.log("Connected to WebSocket server."); 
         websocket.send('CAP LS\r\n');
         websocket.send('NICK '+name+'\r\nUSER '+name + ' ' + name + ' 127.0.0.1 :'+name+'\r\n');
-        setInterval(function(){websocket.send('PING LAG2029982703\r\n')}, 2000);
+        setInterval(function(){websocket.send('PING LAG2029982703\r\n')}, 10000);
     } 
     function onClose(evt) { 
         console.log("Disconnected"); 
