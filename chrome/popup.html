@@ -3,18 +3,15 @@
   <head>
     <title>WebRc</title>
     <style>
-      body {
-        min-width: 357px;
-        overflow-x: hidden;
-      }
 
-      img {
-        margin: 5px;
-        border: 2px solid black;
-        vertical-align: middle;
-        width: 75px;
-        height: 75px;
-      }
+        body {
+            overflow: hidden;
+        }
+        #msgbox {
+            width: 260px;
+            height: 360px;
+            overflow-y: scroll;
+        }
     </style>
 
     <!--
@@ -23,13 +20,20 @@
       -
       - [1]: http://developer.chrome.com/extensions/contentSecurityPolicy.html
      -->
+    <script src="static/jquery-1.7.2.min.js"></script>
     <script src="static/socket.io.min.js"></script>
     <script src="static/webrc.js"></script>
   </head>
   <body>
-      <input type="text" id="msg" name="some_name" value="">
-      <button id="send">send</button>
-      <div id="content"></div>
+      <div id="login_frame">
+          <label>nick</label>:<input type="text" id="nickname" name="nickname" value="">
+          <button id="login">send</button>
+      </div>
+      <div id="chat_frame" style="display:none">
+          <div id="msgbox"></div>
+          <input type="text" id="msg" name="msg" value="">
+          <button id="send_msg">send</button>
+    </div>
   </body>
 </html>
 
