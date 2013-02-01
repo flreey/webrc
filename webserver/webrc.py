@@ -16,33 +16,59 @@ class Socks(object):
             cls.socks[sockid] = sock
         return sock
 
+    @classmethod
+    def close_socket(cls, sockid):
+        sock = cls.socks.pop(sockid, None)
+        if sock:sock.close()
+
 class IRCCommands(object):
-    def send_irc(self, msg):
-        self.sock = Socks.create_socket(self.session.remote_ip)
-        self.sock.sendall(msg)
+    def send2irc(self, msg):
+        self.sock = Socks.create_socket(self.session.sid)
+
+        try:
+            self.sock.sendall(msg)
+        except Exception as e:
+            Socks.close_socket(self.session.sid)
+            print e
 
     def primsg(self, msg):
-        self.sock.sendall('PRIVMSG #%s: %s\r\n' % (self.session.channel, msg))
-
-
-class CharRoom(SocketConnection, IRCCommands):
+        self.send2irc('PRIVMSG #%s :%s\r\n' % (self.session.channel, msg))
 
     def recv_irc(self):
         return self.sock.recv(1024)
 
+class CharRoom(SocketConnection, IRCCommands):
     def on_message(self, msg):
         self.primsg(msg);
         self.recv_irc()
 
     @event
     def login(self, nick, password, channel):
-        self.send_irc('CAP LS\r\nNICK '+nick+'\r\nUSER '+nick + ' ' + nick + ' 127.0.0.1 :'+nick+'\r\n');
+        self.send2irc('CAP LS\r\nNICK '+nick+'\r\nUSER '+nick + ' ' + nick + ' 127.0.0.1 :'+nick+'\r\n');
         self.send(self.recv_irc())
-        self.send_irc('JOIN #%s\r\n' % channel)
-        self.session.channel = channel
+        self.send2irc('JOIN #%s\r\n' % channel)
         self.send(self.recv_irc())
 
+        self.session.channel = channel
         return 'success'
+
+    def on_open(self, request):
+        self.session.sid = self.session.remote_ip
+
+        #send a heartbeat to irc server
+        #when auto send client heartbeat package
+        heartbeat = self.session._heartbeat
+        def _heartbeat():
+            heartbeat()
+            import time
+            self.send2irc('PING LAG%s12345\r\n' % str(int(time.time())))
+        self.session._heartbeat = _heartbeat
+
+        print 'connection: %s' % self.session.sid
+
+    def on_close(self):
+        Socks.close_socket(self.session.sid)
+        print 'disconnection: %s' % self.session.sid
 
 # Create tornadio router
 ChatRouter = TornadioRouter(CharRoom)

@@ -35,7 +35,9 @@ $(function(){
         socket.on('connect', function(){
             $('#login').click(function(){
                 var nickname = $('#nickname').val();
-                irc.login(nickname, '', 'test');
+                if (nickname.length){
+                    irc.login(nickname, '', 'test');
+                }
             })
         })
 })
