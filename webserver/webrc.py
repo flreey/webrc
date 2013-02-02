@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*- 
 
-import select, threading
+import select, threading, socket
 from tornado import web
 from tornadio2 import SocketConnection, TornadioRouter, SocketServer, event
 
@@ -11,7 +11,6 @@ class Socks(object):
     def create_socket(cls, sockid):
         sock = cls.socks.get(sockid)
         if not sock:
-            import socket
             sock = socket.socket(socket.AF_INET)
             sock.connect(('localhost', 6667))
             cls.socks[sockid] = sock
@@ -22,15 +21,17 @@ class Socks(object):
         sock = cls.socks.pop(sockid, None)
         if sock:sock.close()
 
-def listen_irc_server(socks):
-    while True:
-        (rfds, wfds, efds) = select.select(socks.values(), [], [], 1)
-        for rfd in rfds:
-            data = rfd.recv(4086)
-            if data:
-                for k, v in socks.iteritems():
-                    if rfd == v:
-                        k.send(data)
+    @classmethod
+    def select(cls):
+        socks = cls.socks
+        while True:
+            (rfds, wfds, efds) = select.select(socks.values(), [], [], 1)
+            for rfd in rfds:
+                data = rfd.recv(4086)
+                if data:
+                    for k, v in socks.iteritems():
+                        if rfd == v:
+                            k.send(data)
 
 class IRCCommands(object):
     def send2irc(self, msg):
@@ -54,7 +55,6 @@ class IRCCommands(object):
     def join(self, nick, password, channel):
         self.send2irc('CAP LS\r\nNICK '+nick+'\r\nUSER '+nick + ' ' + nick + ' 127.0.0.1 :'+nick+'\r\n');
         self.send2irc('JOIN #%s\r\n' % channel)
-        #self.send(self.recv_irc())
 
 class CharRoom(SocketConnection, IRCCommands):
     def on_message(self, msg):
@@ -67,20 +67,18 @@ class CharRoom(SocketConnection, IRCCommands):
         return 'success'
 
     def on_open(self, request):
-        #send a heartbeat to irc server
+        #send a PING package to irc server
         #when auto send client heartbeat package
         heartbeat = self.session._heartbeat
         def _heartbeat():
             heartbeat()
-            try:
-                if self.session.channel:
-                    import time
-                    self.send2irc('PING LAG%s12345\r\n' % str(int(time.time())))
-            except Exception as e:
-                print e
+            if getattr(self.session, 'channel', None):
+                import time
+                self.send2irc('PING LAG%s12345\r\n' % str(int(time.time())))
 
         self.session._heartbeat = _heartbeat
         print 'connection: %s' % self
+
     def on_close(self):
         Socks.close_socket(self)
         print 'disconnection: %s' % self
@@ -100,7 +98,7 @@ if __name__ == "__main__":
     import logging
     logging.getLogger().setLevel(logging.DEBUG)
 
-    p = threading.Thread(target=listen_irc_server, args=(Socks.socks,))
+    p = threading.Thread(target=Socks.select)
     p.setDaemon(True)
     p.start()
 

@@ -25,8 +25,22 @@ var socket = io.connect('http://localhost:8001');
     }
 
     socket.on('message', function(data){
-        $('#msgbox').append(data+'</br>');
-        $('#msgbox').scrollTop(1000000);
+        _.each(data.split('\r\n'), function(line){
+            values = line.split(' ');
+            switch(values[1]) {
+                case 'JOIN':
+                    $('#msgbox').append(values[0]+':'+line.substr(line.indexOf(values[2]+' :', line.length))+'</br>');
+                    break;
+                case 'PRIVMSG':
+                    $('#msgbox').append(values[0]+':'+line.substr(line.indexOf(values[2]+' :'), line.length)+'</br>');
+                    break;
+                default:
+                    console.log(values[1]);
+                    break;
+            }
+
+            $('#msgbox').scrollTop(1000000);
+        })
     })
 }
 )(irc)
@@ -40,4 +54,5 @@ $(function(){
                 }
             })
         })
+
 })
