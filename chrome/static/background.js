@@ -12,7 +12,6 @@ var createLoginBox= function(){
             },
 
             function(chatWindow){
-                chatWindow.alwaysOnTop = true;
                 chatWindowId = chatWindow.id;
 
                 chrome.windows.onRemoved.addListener(function(window){
