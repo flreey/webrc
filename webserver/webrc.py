@@ -1,18 +1,19 @@
 # -*- coding:utf-8 -*- 
 
+import logging
 import select, threading, socket
 from tornado import web
 from tornadio2 import SocketConnection, TornadioRouter, SocketServer, event
 
-class Socks(object):
+class SocketsManager(object):
     socks = {}
 
     @classmethod
-    def create_socket(cls, sockid):
+    def create_socket(cls, sockid, addr=('localhost', 6667)):
         sock = cls.socks.get(sockid)
         if not sock:
             sock = socket.socket(socket.AF_INET)
-            sock.connect(('localhost', 6667))
+            sock.connect(addr)
             cls.socks[sockid] = sock
         return sock
 
@@ -23,30 +24,34 @@ class Socks(object):
 
     @classmethod
     def select(cls):
-        socks = cls.socks
         while True:
-            (rfds, wfds, efds) = select.select(socks.values(), [], [], 1)
-            for rfd in rfds:
-                data = rfd.recv(4086)
-                if data:
-                    for k, v in socks.iteritems():
-                        if rfd == v:
-                            k.send(data)
+            socks = cls.socks.values()
+            try:
+                (rfds, wfds, efds) = select.select(socks, [], [], 1)
+                for rfd in rfds:
+                    data = rfd.recv(4086)
+                    if data:
+                        for sock in socks:
+                            if rfd == sock:
+                                sock.send(data)
+            except socket.error as e:
+                print e
 
 class IRCCommands(object):
     def send2irc(self, msg):
-        self.sock = Socks.create_socket(self)
+        self.sock = SocketsManager.create_socket(self)
 
         try:
             self.sock.sendall(msg)
         except Exception as e:
-            Socks.close_socket(self)
+            SocketsManager.close_socket(self)
             #close bidirect connection
             self.session.close()
             print e
 
     def primsg(self, msg):
         self.send2irc('PRIVMSG #%s :%s\r\n' % (self.session.channel, msg))
+        logging.debug('PRIVMSG #%s :%s\r\n' % (self.session.channel, msg))
 
     def recv_irc(self, bufsize=1024):
         recv = self.sock.recv(bufsize)
@@ -64,6 +69,7 @@ class CharRoom(SocketConnection, IRCCommands):
     def login(self, nick, password, channel):
         self.join(nick, password, channel)
         self.session.channel = channel
+        logging.debug('%s: login' % nick)
         return 'success'
 
     def on_open(self, request):
@@ -80,7 +86,7 @@ class CharRoom(SocketConnection, IRCCommands):
         print 'connection: %s' % self
 
     def on_close(self):
-        Socks.close_socket(self)
+        SocketsManager.close_socket(self)
         print 'disconnection: %s' % self
 
 # Create tornadio router
@@ -95,10 +101,9 @@ application = web.Application(
 
 
 if __name__ == "__main__":
-    import logging
     logging.getLogger().setLevel(logging.DEBUG)
 
-    p = threading.Thread(target=Socks.select)
+    p = threading.Thread(target=SocketsManager.select)
     p.setDaemon(True)
     p.start()
 

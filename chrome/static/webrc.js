@@ -55,4 +55,8 @@ $(function(){
             })
         })
 
+        socket.on('disconnect', function(){
+            //socket = io.connect('http://localhost:8001');
+            console.log('disconnect')
+        })
 })
